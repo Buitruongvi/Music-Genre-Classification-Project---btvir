@@ -224,8 +224,155 @@ plt.show()
 ```
 ![image](https://github.com/Buitruongvi/Music-Genre-Classification-Project---btvir/assets/49474873/42ef8dfc-dc3a-453d-b5d5-654ba817e69e)
 
+## Building a data pipeline with Dataset and DataLoader
+```python
+import pandas as pd
+# Reading the csv file
+df = pd.read_csv("/content/GTZAN/features_3_sec.csv")
+df.head()
 
+# Drop the column filename as it is no longer required for training
+df=df.drop(labels="filename",axis=1)
 
+# Drop the column length as it is constant
+df=df.drop(labels="length",axis=1)
+
+X, y =  df.iloc[:,:-1], df.iloc[:,-1]
+
+from sklearn.preprocessing import LabelEncoder
+# Blues - 0
+# Classical - 1
+# Country - 2
+# Disco - 3
+# Hip-hop - 4
+# Jazz - 5
+# Metal - 6
+# Pop - 7
+# Reggae - 8
+# Rock - 9
+encoder=LabelEncoder()
+y=encoder.fit_transform(y)
+
+#scaling
+from sklearn.preprocessing import StandardScaler
+scaler=StandardScaler()
+X=scaler.fit_transform(X)
+
+from sklearn.model_selection import train_test_split
+# splitting 70% data into training set and the remaining 30% to test set
+X_train,X_test,y_train,y_test=train_test_split(X,y,test_size=0.3, random_state=1234)
+```
+## Feed-forward Neural Network
+```python
+import os
+import numpy as np
+
+import torch
+from torch import nn, optim
+from torch.functional import F
+from torch.utils.data import DataLoader, TensorDataset
+```
+```python
+class MLP(nn.Module):
+    def __init__(self, input_size):
+        super(MLP, self).__init__()
+        self.flatten = nn.Flatten()
+        self.fc1 = nn.Linear(input_size, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 128)
+        self.fc4 = nn.Linear(128, 64)
+        self.fc5 = nn.Linear(64, 32)
+        self.fc6 = nn.Linear(32, 10)
+        self.dropout = nn.Dropout(0.2)
+
+    def forward(self, x):
+        x = self.flatten(x)
+        x = F.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = F.relu(self.fc2(x))
+        x = self.dropout(x)
+        x = F.relu(self.fc3(x))
+        x = self.dropout(x)
+        x = F.relu(self.fc4(x))
+        x = self.dropout(x)
+        x = F.relu(self.fc5(x))
+        x = self.dropout(x)
+        x = self.fc6(x)
+        return x
+
+input_size = X_train.shape[1]
+model = MLP(input_size)
+
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.000146)
+```
+## Train the model
+```python
+num_epochs = 300
+batch_size = 256
+
+train_dataset = TensorDataset(torch.tensor(X_train), torch.tensor(y_train))
+train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+
+val_dataset = TensorDataset(torch.tensor(X_test), torch.tensor(y_test))
+val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+step = 0
+
+for epoch in range(num_epochs):
+    model.train()
+    for inputs, labels in train_loader:
+        optimizer.zero_grad()
+        outputs = model(inputs.float())
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+
+        if step % 100 ==0:
+          print(f"Step {step}, Train Loss: {loss.item():.4f}")
+        step += 1
+
+    # Validation
+    model.eval()
+    val_loss = 0.0
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for inputs, labels in val_loader:
+            outputs = model(inputs.float())
+            loss = criterion(outputs, labels)
+            val_loss += loss.item()
+            _, predicted = outputs.max(1)
+            total += labels.size(0)
+            correct += predicted.eq(labels).sum().item()
+
+    val_loss /= len(val_loader)
+    val_accuracy = 100 * correct / total
+    print(f"Epoch {epoch+1}/{num_epochs}, Validation Loss: {val_loss:.4f}, Validation Accuracy: {val_accuracy:.2f}%")
+```
+## Evaluate the mode
+```python
+# Sample testing
+model.eval()
+with torch.no_grad():
+    predictions = model(torch.tensor(X_test).float())
+    _, predicted_indices = predictions.max(1)
+    print("Expected Index: {}, Predicted Index: {}".format(y_test, predicted_indices.numpy()))
+
+# Confusion Matrix and Classification Report
+from sklearn.metrics import classification_report
+import seaborn as sns
+
+y_pred = predicted_indices.numpy()
+cf_matrix = confusion_matrix(y_test, y_pred)
+sns.set(rc={'figure.figsize':(12,6)})
+sns.heatmap(cf_matrix, annot=True)
+print(classification_report(y_test, y_pred))
+```
+![image](https://github.com/Buitruongvi/Music-Genre-Classification-Project---btvir/assets/49474873/38a927f7-f42f-42cc-9cc9-278f81a41b02)
+
+## References
+AIO2023
 
 
 
