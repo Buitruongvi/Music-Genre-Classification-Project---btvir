@@ -34,7 +34,7 @@ plt.colorbar(format='%+2.0f dB')
 ```
 ![image](https://github.com/Buitruongvi/Music-Genre-Classification-Project---btvir/assets/49474873/bf59172b-3c54-49e0-9d16-3a15c6c3eb14)
 ### 2. Mel-Spectrogram
-```pyhton
+```python
 # Let load .wav file with default sampling rate of 22,050Hz
 data, sr = librosa.load(data_path)
 # Creating log mel spectrogram
